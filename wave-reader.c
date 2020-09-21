@@ -145,32 +145,32 @@ struct analyzer_t {
 };
 
 struct analyzer_t* analyzer_init(struct playback_t* pb, int16_t minrange, int16_t maxrange, uint32_t steps) {
-    struct analyzer_t* anal = malloc(sizeof(struct analyzer_t));
-    anal->pb = pb;
-    anal->minrange = minrange;
-    anal->maxrange = maxrange;
-    anal->topcount = anal->next = anal->nextnext = 0;
-    anal->steps = steps;
-    anal->counts = malloc(steps * sizeof(uint32_t));
-    return anal;
+    struct analyzer_t* anl = malloc(sizeof(struct analyzer_t));
+    anl->pb = pb;
+    anl->minrange = minrange;
+    anl->maxrange = maxrange;
+    anl->topcount = anl->next = anl->nextnext = 0;
+    anl->steps = steps;
+    anl->counts = malloc(steps * sizeof(uint32_t));
+    return anl;
 }
 
-bool analyzer_analyze(struct analyzer_t* anal, size_t samples) {
-    memset(anal->counts, 0, anal->steps * sizeof(uint32_t));
-    int16_t div = (anal->maxrange - anal->minrange + anal->steps) / anal->steps;
+bool analyzer_analyze(struct analyzer_t* anl, size_t samples) {
+    memset(anl->counts, 0, anl->steps * sizeof(uint32_t));
+    int16_t div = (anl->maxrange - anl->minrange + anl->steps) / anl->steps;
     div += !div;
-    anal->topcount = anal->next = anal->nextnext = 0;
+    anl->topcount = anl->next = anl->nextnext = 0;
     for (size_t i = 0; i < samples; ++i) {
-        if (!playback_iterate(anal->pb)) return false;
-        int32_t c = anal->pb->chn[0];
-        c -= anal->minrange;
+        if (!playback_iterate(anl->pb)) return false;
+        int32_t c = anl->pb->chn[0];
+        c -= anl->minrange;
         c /= div;
-        if (c < 0 || c >= anal->steps) printf("(%d - %d) / %d = %d (outside 0..%u)\n", anal->pb->chn[0], anal->minrange, div, c, anal->steps);
-        assert(c > -1 && c < anal->steps);
-        if (++anal->counts[c] > anal->counts[anal->topcount]) {
-            if (anal->next != c) anal->nextnext = anal->next;
-            anal->next = anal->topcount;
-            anal->topcount = c;
+        if (c < 0 || c >= anl->steps) printf("(%d - %d) / %d = %d (outside 0..%u)\n", anl->pb->chn[0], anl->minrange, div, c, anl->steps);
+        assert(c > -1 && c < anl->steps);
+        if (++anl->counts[c] > anl->counts[anl->topcount]) {
+            if (anl->next != c) anl->nextnext = anl->next;
+            anl->next = anl->topcount;
+            anl->topcount = c;
         }
     }
     return true;
@@ -226,7 +226,7 @@ int main(const int argc, const char* argv[]) {
     // finally, the end quality is defined as the top TWO hits across the entire run, and their counts over the entire counts
     double top_score = 0;
     #define STEPS 10000
-    struct analyzer_t* anal = analyzer_init(pb, min, max, STEPS);
+    struct analyzer_t* anl = analyzer_init(pb, min, max, STEPS);
     uint64_t tally_counts[STEPS];
     for (size_t window = 10; window < 500; ++window) {
         for (size_t slide = 0; slide < window; ++slide) {
@@ -238,11 +238,11 @@ int main(const int argc, const char* argv[]) {
             memset(tally_counts, 0, sizeof(uint64_t) * STEPS);
             uint32_t top[4] = {0, 0, 0, 0};
             uint32_t samples = 0;
-            while (analyzer_analyze(anal, window)) {
+            while (analyzer_analyze(anl, window)) {
                 samples += window;
-                int16_t tc = anal->topcount;
-                tally_counts[tc] += anal->counts[tc];
-                // printf("%10d [%3u]\t%10d [%3u]\t%10d [%3u]\n", anal->topcount, anal->counts[anal->topcount], anal->next, anal->counts[anal->next], anal->nextnext, anal->counts[anal->nextnext]);
+                int16_t tc = anl->topcount;
+                tally_counts[tc] += anl->counts[tc];
+                // printf("%10d [%3u]\t%10d [%3u]\t%10d [%3u]\n", anl->topcount, anl->counts[anl->topcount], anl->next, anl->counts[anl->next], anl->nextnext, anl->counts[anl->nextnext]);
             }
             uint32_t min = 999, max = 0;
             for (size_t j = 0; j < 4; ++j) {
